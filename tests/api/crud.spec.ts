@@ -1,0 +1,143 @@
+import { test, expect } from '@playwright/test';
+
+// GET /posts/1 – Retrieve existing post
+//
+// Overujeme, že API vráti správny záznam podľa požadovaného ID a že obsahuje očakávané údaje. Tým znižujeme riziko, že aplikácia bude pracovať s nesprávnym alebo neúplným záznamom.
+test('GET /posts/1 - returns correct post', async ({ request }) => {
+    const response = await request.get(
+        'https://jsonplaceholder.typicode.com/posts/1'
+    );
+
+    expect(response.status()).toBe(200);
+
+    const post = await response.json();
+
+    expect(post).toMatchObject({
+        id: 1,
+        userId: 1,
+        title: "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
+        body: 'quia et suscipit\n' +
+            'suscipit recusandae consequuntur expedita et cum\n' +
+            'reprehenderit molestiae ut ut quas totam\n' +
+            'nostrum rerum est autem sunt rem eveniet architecto'
+    });
+
+    expect(post.title).toEqual(expect.any(String));
+    expect(post.title.trim().length).toBeGreaterThan(0);
+
+    expect(post.body).toEqual(expect.any(String));
+    expect(post.body.trim().length).toBeGreaterThan(0);
+});
+
+test('GET /posts - returns list of posts', async ({ request }) => {
+
+    const response = await request.get(
+        'https://jsonplaceholder.typicode.com/posts'
+    );
+
+    expect(response.status()).toBe(200);
+
+    const posts = await response.json();
+
+    expect(Array.isArray(posts)).toBe(true);
+    expect(posts.length).toBeGreaterThan(0);
+    expect(posts[0].id).toEqual(expect.any(Number));
+});
+
+test('GET /posts/0000 - returns 404 for non-existing post', async ({ request }) => {
+    const response = await request.get(
+        'https://jsonplaceholder.typicode.com/posts/0000'
+    );
+
+    expect(response.status()).toBe(404);
+    
+    const post = await response.json();
+    
+    expect(post).toEqual({})
+});
+
+test('POST /posts - creates new post successfully', async ({ request }) => {
+    const newPost = {
+        title: 'New created test',
+        body: 'Testing POST request with playwright yay',
+        userId: 1,
+    };
+
+    const response = await request.post(
+        'https://jsonplaceholder.typicode.com/posts',
+        {
+            data: newPost,
+        }
+    );
+
+    expect(response.status()).toBe(201);
+
+    const responseBody = await response.json();
+
+    expect(responseBody.id).toEqual(expect.any(Number));
+    expect(responseBody.id).toBeGreaterThan(0);
+    expect(responseBody).toMatchObject(newPost);
+});
+
+test('PUT /posts/1 - update existing post', async ({ request }) => {
+    const updatedPost = {
+        id: 1,
+        title: 'Updated test',
+        body: 'Testing PUT request with playwright yay',
+        userId: 1,
+    }
+
+    const response = await request.put(
+        'https://jsonplaceholder.typicode.com/posts/1',
+        {
+            data: updatedPost,
+        }
+    );
+
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+
+    expect(responseBody).toMatchObject(updatedPost);
+});
+
+test('PATCH /posts/1 - partial update existing post', async ({ request }) => {
+    const originalResponse = await request.get(
+        'https://jsonplaceholder.typicode.com/posts/1'
+    );
+
+    expect(originalResponse.status()).toBe(200);
+    const originalPost = await originalResponse.json();
+
+    const patchedPost = {
+        body: 'Testing PATCH request with playwright yay',
+    }
+
+    const response = await request.patch(
+        'https://jsonplaceholder.typicode.com/posts/1',
+        {
+            data: patchedPost,
+        }
+    );
+
+    expect(response.status()).toBe(200);
+
+    const responseBody = await response.json();
+
+    expect(responseBody).toMatchObject(patchedPost);
+
+    // verify that other values were not updated
+    expect(responseBody.id).toBe(originalPost.id);
+    expect(responseBody.userId).toBe(originalPost.userId);
+    expect(responseBody.title).toEqual(originalPost.title);
+});
+
+test('DELETE /posts/1 - deletes existing post', async ({ request }) => {
+    const response = await request.delete(
+        'https://jsonplaceholder.typicode.com/posts/1'
+    );
+
+    expect(response.status()).toBe(200);
+    const responseBody = await response.json();
+    expect(responseBody).toEqual({})
+})
