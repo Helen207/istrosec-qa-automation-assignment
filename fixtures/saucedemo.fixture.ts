@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test';
-import {LoginPage} from "../pages/soucedemo/LoginPage";
-import {InventoryPage} from "../pages/soucedemo/InventoryPage";
+import {LoginPage} from "../pages/saucedemo/LoginPage";
+import {InventoryPage} from "../pages/saucedemo/InventoryPage";
 
 type SauceDemoFixtures = {
     loginPage: LoginPage;
