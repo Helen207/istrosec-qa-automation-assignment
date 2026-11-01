@@ -249,6 +249,7 @@ Test credentials are stored separately from the tests to avoid duplication and s
 | Missing token | A protected endpoint must not fall back to anonymous access. Expects `401` and the "Access Token is required" message. |
 | Invalid token | Forged or garbage tokens are the basic attack on token authentication. The test expects `401` with "Invalid/Expired Token!", not a `200` and not a server error. |
 | Invalid credentials | A failed login must not issue tokens, even partially. Expects `400`, a generic "Invalid credentials" message and no `accessToken` / `refreshToken` in the body. |
+| Expired token | A token must stop working when it expires, otherwise a stolen token is valid forever. The login uses `expiresInMins: 1` (the shortest lifetime DummyJSON honours), checks that `/auth/me` first returns 200, then polls until it returns 401 with `Token Expired!`. The first check proves the 401 is caused by expiry and not by a bad token. The test takes about a minute because the lifetime cannot be shorter. |
 
 **Additional security scenarios**
 
@@ -259,6 +260,21 @@ The two additional scenarios cover the two ways authentication fails open:
 
 The `expiresInMins` login parameter was not used; see Limitations.
 
+**Token expiry**
+
+`expiresInMins` is used to issue a token that lives for one minute. DummyJSON ignores `0` (it falls back to the 30-day default) and rejects negative values, so one minute is the shortest lifetime possible and the test has to wait for it. It polls every 5 seconds with a 90-second limit instead of sleeping. Locally it runs in parallel with the other tests, so the whole run takes about a minute; in CI (one worker) the minute is added to the run.
+
 **Limitations**
 
-Token expiration, refresh token rotation, session revocation, rate limiting and more advanced authorization scenarios are not covered due to the limited scope of the assignment. These would be relevant areas for further testing in a production environment.
+Refresh token rotation, session revocation, rate limiting and more advanced authorization scenarios are not covered due to the limited scope of the assignment. See the next section for what I would add.
+
+### What I would test next in a production environment
+
+- **Refresh token flow:** a refresh token issues a new access token, an old or reused refresh token is rejected (rotation and replay), and logout invalidates it. Not covered: I did not investigate the refresh endpoint's rotation and revocation behaviour within the scope of the assignment.
+- **Brute force and rate limiting:** many failed logins for one account and from one address should lock or slow the attempts, and the response must not reveal whether the user exists. Not covered: a public demo API must not be hammered, and the limits are unknown.
+- **Authorization, not only authentication:** one user's token must not read or change another user's data (object-level access), and low-privilege users must not reach admin functions. Not covered: I am not aware of per-user resources or role checks in DummyJSON that would make this testable.
+- **Token handling:** tampered signature, `alg: none`, wrong audience or issuer, and tokens sent in the query string or logged. Partly covered by the invalid token test; the rest needs access to the token format and server logs.
+- **Session behaviour in the UI:** the browser Back button after logout, session timeout on inactivity, and concurrent sessions of one user. Not covered: SauceDemo is a demo shop, and I would not expect its session handling to say anything about a real product.
+- **Transport and headers:** HTTPS only, cookie flags (`Secure`, `HttpOnly`, `SameSite`), CORS, and error messages that leak internals. Not covered: not controllable on a third-party demo.
+
+**Risks this suite does not cover:** everything above, plus load and availability, and behaviour of the sites over time (the tests depend on public demos that can change or be down). I left these out because they need either a system I own and can break, or a specification the demo APIs do not have.

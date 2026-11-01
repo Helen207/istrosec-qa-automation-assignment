@@ -79,6 +79,38 @@ test('GET /auth/me - rejects invalid access token', async ({request}) => {
     expect(responseBody.message).toBe('Invalid/Expired Token!');
 });
 
+// DummyJSON's shortest usable lifetime is one minute (0 falls back to the 30-day default),
+// so this test waits for the token to expire by polling instead of sleeping.
+test('GET /auth/me - rejects expired access token', async ({ request, playwright, baseURL }) => {
+    test.setTimeout(120_000);
+
+    const loginResponse = await request.post('/auth/login', {
+        data: { ...dummyJsonUsers.valid, expiresInMins: 1 },
+    });
+    expect(loginResponse.status()).toBe(200);
+    const { accessToken } = await loginResponse.json();
+
+    const authenticatedRequest = await playwright.request.newContext({ baseURL });
+
+    try {
+        const headers = { Authorization: `Bearer ${accessToken}` };
+
+        // proves the token was valid before it expired, so the later 401 is caused by expiry
+        const validResponse = await authenticatedRequest.get('/auth/me', { headers });
+        expect(validResponse.status()).toBe(200);
+
+        await expect.poll(
+            async () => (await authenticatedRequest.get('/auth/me', { headers })).status(),
+            { timeout: 90_000, intervals: [5_000] },
+        ).toBe(401);
+
+        const expiredResponse = await authenticatedRequest.get('/auth/me', { headers });
+        expect((await expiredResponse.json()).message).toBe('Token Expired!');
+    } finally {
+        await authenticatedRequest.dispose();
+    }
+});
+
 test('POST /auth/login - rejects invalid credentials', async ({request}) => {
     const response = await request.post('/auth/login', {
         data: dummyJsonUsers.invalid
