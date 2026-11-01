@@ -139,6 +139,7 @@ The healthcheck is how the server learns which agents exist, what they run on an
 | Test Case | Reason |
 |---|---|
 | Empty payload | A bare `{}` must not count as a heartbeat. Also checks that errors are reported, not just a status code. |
+| Malformed JSON body | The response contract is JSON in both directions. A truncated body from a crashing agent must get the same `{"status":"error","errors":[...]}` answer, not a framework HTML error page that the agent cannot parse. |
 | Missing `agent_id` | `agent_id` is the identity of the agent; accepting a payload without it creates an unattributable host record. |
 | Invalid UUID format | Identifiers are used as keys. Malformed ones lead to lookup errors, collisions or spoofed identities. |
 | Unknown root field | The contract is strict by design: unknown fields are data nobody validated that could reach storage or logs, and they also reveal agent/server version drift. |

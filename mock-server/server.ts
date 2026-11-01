@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { healthcheckSchema} from "./validator";
 
 const app = express();
@@ -25,6 +25,17 @@ app.post('/healthcheck', (req: Request, res: Response) => {
 
     return res.status(200).json({
         status: 'ok',
+    });
+});
+
+app.use((err: Error & { type?: string }, _req: Request, res: Response, next: NextFunction) => {
+    if (err.type !== 'entity.parse.failed') {
+        return next(err);
+    }
+
+    return res.status(400).json({
+        status: 'error',
+        errors: [{ field: 'root', message: 'Malformed JSON body' }],
     });
 });
 

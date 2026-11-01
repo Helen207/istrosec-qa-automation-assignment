@@ -134,6 +134,22 @@ test('POST /healthcheck - rejects empty payload', async ({ request }) => {
     expect(body.errors.length).toBeGreaterThan(0);
 });
 
+test('POST /healthcheck - rejects malformed JSON body in the error format', async ({ request }) => {
+    const response = await request.post('/healthcheck', {
+        headers: { 'content-type': 'application/json' },
+        data: Buffer.from('{"agent_id": '),
+    });
+
+    expect(response.status()).toBe(400);
+
+    const body = await response.json();
+
+    expect(body.status).toBe('error');
+    expect(body.errors).toEqual([
+        expect.objectContaining({ field: 'root', message: expect.stringContaining('JSON') }),
+    ]);
+});
+
 for (const testCase of invalidCases) {
     test(`POST /healthcheck - rejects ${testCase.name}`, async ({ request }) => {
         const payload = structuredClone(validHealthcheckPayload);
