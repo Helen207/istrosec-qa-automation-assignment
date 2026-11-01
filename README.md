@@ -184,7 +184,9 @@ The healthcheck is how the server learns which agents exist, what they run on an
 - Unknown fields are rejected at both root and nested object levels using strict schemas. This favors a clearly defined security-agent contract, although it reduces forward compatibility when new fields are introduced.
 - UTC timestamps must end in `Z`; fractional seconds are accepted. Calendar validity is checked in addition to the timestamp format.
 - `session_info` may be empty, while `adapter_info` and `roles` must contain at least one entry.
-- IPv4 and IPv6 addresses are supported, including IPv6 zone identifiers.
+- IPv4 and IPv6 addresses are supported, including IPv6 zone identifiers. A zone index may contain letters, digits and `_ . ~ -`; an empty zone (`fe80::1%`) or any other character is rejected. The assignment only gives `%7` as an example, so this character set is my own choice.
+- "Non-empty string" is checked after trimming, so a whitespace-only `computer_name`, `os_name`, `session_name` or adapter `name` is rejected. The assignment does not say whether `"   "` counts as empty; I treat it as empty because a blank host name is as useless as a missing one. This is pinned by a test, so changing it is a conscious decision.
+- Invalid JSON bodies are answered with the same `{"status":"error","errors":[...]}` format (field `root`) instead of the framework's default HTML page.
 
 The mock server is started automatically through Playwright's `webServer` configuration. Tests can be run with `npx playwright test --project=api-healthcheck`.
 
