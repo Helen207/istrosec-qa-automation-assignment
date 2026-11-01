@@ -119,7 +119,7 @@ export const invalidCases: InvalidCase[] = [
         expectedField: 'roles.0',
     },
     {
-        name: 'Unknown session info state',
+        name: 'unknown session state',
         modify: (payload) => {
             payload.session_info[0].state = 'Unknown';
         },

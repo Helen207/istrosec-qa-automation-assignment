@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // GET /posts/1 – Retrieve existing post
 //
-// Overujeme, že API vráti správny záznam podľa požadovaného ID a že obsahuje očakávané údaje. Tým znižujeme riziko, že aplikácia bude pracovať s nesprávnym alebo neúplným záznamom.
+// Verifies that the API returns the record for the requested ID with the expected data, which lowers the risk of the application working with a wrong or incomplete record.
 test('GET /posts/1 - returns correct post', async ({ request }) => {
     const response = await request.get('/posts/1');
 
@@ -50,7 +50,7 @@ test('GET /posts/9999 - returns 404 for non-existing post', async ({ request }) 
     expect(post).toEqual({})
 });
 
-test('GET - filter posts for userId', async ({ request }) => {
+test('GET /posts?userId=1 - returns only posts of that user', async ({ request }) => {
     const userId = 1;
 
     const response = await request.get('/posts', {
@@ -71,7 +71,7 @@ test('GET - filter posts for userId', async ({ request }) => {
     }
 });
 
-test('GET - filter posts for invalid id', async ({ request }) => {
+test('GET /posts/invalid-id - returns 404 for an invalid id format', async ({ request }) => {
     const response = await request.get('/posts/invalid-id');
 
     expect(response.status()).toBe(404);

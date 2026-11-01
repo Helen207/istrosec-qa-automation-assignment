@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {dummyJsonUsers} from "../../test-data/dummyjson.users";
 
 
-test('POST/auth/login - returns tokens for valid credentials', async ({request}) => {
+test('POST /auth/login - returns tokens for valid credentials', async ({request}) => {
     const response = await request.post('/auth/login', {
         data: dummyJsonUsers.valid
     });
