@@ -1,81 +1,62 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+const mockServerUrl = 'http://127.0.0.1:3001';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
 export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('')`. */
-    // baseURL: 'http://localhost:3000',
+    testDir: './tests',
+    fullyParallel: true,
+    forbidOnly: !!process.env.CI,
+    retries: process.env.CI ? 2 : 0,
+    workers: process.env.CI ? 1 : undefined,
+    // 'open: never' keeps a failed local run from blocking the terminal with a report server.
+    reporter: [['list'], ['html', { open: 'never' }]],
+    use: {
+        trace: 'on-first-retry',
+    },
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-  },
+    projects: [
+        {
+            name: 'api-crud',
+            testMatch: '**/api/crud.spec.ts',
+            use: {
+                baseURL: 'https://jsonplaceholder.typicode.com',
+            },
+        },
+        {
+            name: 'ui-chromium',
+            testMatch: '**/ui/saucedemo-*.spec.ts',
+            use: {
+                ...devices['Desktop Chrome'],
+            },
+        },
+        {
+            name: 'ui-react-admin',
+            testMatch: '**/ui/react-admin-*.spec.ts',
+            use: {
+                ...devices['Desktop Chrome'],
+                baseURL: 'https://marmelab.com/react-admin-demo/',
+            },
+        },
+        {
+            name: 'api-auth',
+            testMatch: '**/api/auth.spec.ts',
+            use: {
+                baseURL: 'https://dummyjson.com',
+            },
+        },
+        {
+            name: 'api-healthcheck',
+            testMatch: '**/api/healthcheck.spec.ts',
+            use: {
+                baseURL: mockServerUrl,
+            },
+        },
+    ],
 
-  /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'api-crud',
-      testMatch: '**/api/crud.spec.ts',
-      use: {
-        baseURL: 'https://jsonplaceholder.typicode.com',
-      },
+    webServer: {
+        command: 'npm run mock:start',
+        url: `${mockServerUrl}/health`,
+        reuseExistingServer: !process.env.CI,
+        timeout: 30_000,
     },
-    {
-      name: 'ui-chromium',
-      testMatch: '**/ui/saucedemo-*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-    {
-      name: 'ui-react-admin',
-      testMatch: '**/ui/react-admin-*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: 'https://marmelab.com/react-admin-demo/',
-      },
-    },
-    {
-      name: 'api-auth',
-      testMatch: '**/api/auth.spec.ts',
-      use: {
-        baseURL: 'https://dummyjson.com',
-      },
-    },
-    {
-      name: 'api-healthcheck',
-      testMatch: '**/api/healthcheck.spec.ts',
-      use: {
-        baseURL: 'http://127.0.0.1:3001',
-      },
-    }
-  ],
-
-  webServer: {
-    command: 'npm run mock:start',
-    url: 'http://127.0.0.1:3001/health',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
-  },
 });
