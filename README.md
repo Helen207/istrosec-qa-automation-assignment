@@ -89,15 +89,15 @@ The goal is to verify basic CRUD operations, response data and selected negative
 
 | Test Case | Reason |
 |---|---|
-| GET /posts | Verify that the API returns a non-empty list of posts with the expected structure. |
-| GET /posts/1 | Verify that an existing post can be retrieved by its ID. |
-| GET /posts/99999 | Verify that a non-existing post returns 404 instead of incorrect data. |
-| GET /posts/invalid-id | Verify how the API handles an invalid ID format without returning an internal server error. |
-| GET /posts?userId=1 | Verify that filtering returns only posts belonging to the requested user. |
-| POST /posts | Verify that the API accepts a new post and returns the submitted data and generated ID. |
-| PUT /posts/1 | Verify that a full update returns the expected updated data. |
-| PATCH /posts/1 | Verify that a partial update changes the requested field without affecting other fields. |
-| DELETE /posts/1 | Verify that the API returns the expected successful deletion response. |
+| GET /posts | The list is what clients render first. The test checks that the body is a non-empty array and that items carry a numeric `id`, which clients use to link to the detail view; a changed shape or an empty list would break every consumer at once. |
+| GET /posts/1 | Asserts the exact `id`, `userId`, `title` and `body` of a known record, not just status 200. A server that returns 200 with the wrong or half-empty record would silently show clients incorrect data. |
+| GET /posts/9999 | A missing resource must be reported as 404 with an empty body. If it returned 200 with `null` or another record, clients could not tell "does not exist" from valid data. |
+| GET /posts/invalid-id | Malformed input is the cheapest way to provoke a server error. The test pins the current behaviour (404, empty body) and would catch a regression to a 500 or a leaked stack trace. |
+| GET /posts?userId=1 | Filtering is server-side data scoping. The test checks that **every** returned post belongs to user 1, not only the first, because a filter that over-matches would show one user's data in another user's view. |
+| POST /posts | Creation must return `201` (not a generic 200), echo the submitted fields and assign an `id`. Clients need that `id` to refer to the new resource, and 201 is how they know it was created. |
+| PUT /posts/1 | A full update has to return every submitted field with its new value; this is the contract clients rely on to refresh their local copy after saving. |
+| PATCH /posts/1 | A partial update must change only the sent field. The test re-reads the original post and checks that `id`, `userId` and `title` stay untouched, which catches a PATCH that behaves like PUT and wipes the fields that were not sent. |
+| DELETE /posts/1 | Clients use the success response as the signal to remove the item from their UI. The test pins `200` and an empty body so a change in the success contract is noticed. |
 
 ### Known Limitations and Omitted Scenarios
 
@@ -115,6 +115,56 @@ In a production API, I would additionally test input validation, data persistenc
 Implemented a local Express mock server with Zod schema validation. The server accepts valid healthcheck payloads with HTTP 200 and `{ "status": "ok" }`, and rejects invalid payloads with HTTP 400 and a structured `errors` array.
 
 **Testing approach:** Positive tests cover the reference payload and important boundary conditions. Data-driven negative tests cover missing and unexpected fields, invalid UUIDs, numeric constraints, timestamp formats, IP addresses, and nested object validation. Each invalid case is executed as a separate Playwright test.
+
+### Test Coverage
+
+The healthcheck is how the server learns which agents exist, what they run on and whether they are alive. Wrongly **accepting** a payload stores untrusted or ambiguous data about a host in a security product; wrongly **rejecting** a valid one makes a healthy agent look dead and creates a blind spot. Both directions are tested.
+
+**Positive tests (must be accepted)**
+
+| Test Case | Reason |
+|---|---|
+| Reference payload | Baseline. If the documented payload is rejected, every agent is reported as failing, and all the negative tests would be meaningless because they are derived from this payload. |
+| Empty `session_info` | A host with nobody logged in (freshly booted, server) is a normal state. Rejecting it would make legitimate agents disappear. |
+| UTC timestamp with milliseconds | ISO 8601 allows fractional seconds, so a stricter validator would reject real agents. The test checks that the `Z` rule is not implemented as a rigid regex. |
+| Adapter with empty `addresses` | A disconnected adapter has no IP. An empty array is still a valid array of valid addresses, so the server must not reject it. |
+
+**Negative tests (must be rejected with 400 and an error that names the field)**
+
+| Test Case | Reason |
+|---|---|
+| Empty payload | A bare `{}` must not count as a heartbeat. Also checks that errors are reported, not just a status code. |
+| Missing `agent_id` | `agent_id` is the identity of the agent; accepting a payload without it creates an unattributable host record. |
+| Invalid UUID format | Identifiers are used as keys. Malformed ones lead to lookup errors, collisions or spoofed identities. |
+| Unknown root field | The contract is strict by design: unknown fields are data nobody validated that could reach storage or logs, and they also reveal agent/server version drift. |
+| Unknown adapter field | The same strictness must hold in nested objects, where validators most often stop checking. |
+| Negative `os_build` | Range check. The OS build number is used to judge patch level, and a negative value is never produced by a real agent. |
+| Decimal `os_build` | Integer check, separate from the range check, so that each rule can fail on its own. |
+| String `os_build` | Type confusion (`"22000"` vs `22000`) breaks numeric comparisons downstream and suggests a hand-crafted payload. |
+| Timestamp with timezone offset | The rule demands UTC with a `Z` suffix; `+00:00` is the same instant but a different format that other components may not parse. |
+| Timestamp without timezone | An ambiguous local time skews the ordering of boot and update events, which matters when reconstructing an incident. |
+| Non-existing calendar date | `2022-02-30` matches the timestamp format but is not a real date; it passes a regex-only validator. |
+| Invalid IPv4 address | Addresses are used for asset inventory and network attribution; `999.999.999.999` would attribute a host to a non-existent address. |
+| Invalid IPv6 address | Separate parser, separate bug surface from IPv4. |
+| Empty IPv6 zone index | `%7` is explicitly allowed, so the boundary is `fe80::1%` with an empty zone; a lenient implementation accepts any text after `%`. |
+| Empty `adapter_info` | The rule requires at least one adapter; an agent that reports none has no network identity. |
+| Missing adapter `name` | Required key inside a nested object. |
+| Empty `roles` | Roles tell the server which policies apply to the host, so a host without a role would have no classification. |
+| Unsupported role (`admin`) | Enum check: an arbitrary role value must never be able to select a policy the product does not define. |
+| Unknown session `state` | Enum check: the session state tells whether a user is active on the host. |
+
+### Riskiest Areas
+
+1. **Identity fields** (`agent_id`, `system_product_uuid`): a wrong value means a host is mislabelled or impersonated.
+2. **Enum values** (`roles`, `state`) and **unknown fields**: they decide how the server classifies the host and what data enters the system.
+3. **Timestamps and addresses**: the most format-sensitive fields, and the ones where plain regexes usually accept invalid input.
+
+### Consciously Omitted
+
+- A missing-field test for every single field: one representative (`agent_id`) plus the empty payload covers the same required-field mechanism.
+- Negative values for `os_major` / `os_minor` / `session_id`: they share the integer rule that is tested on `os_build`.
+- Transport-level cases (invalid JSON, wrong content type, huge payloads, other HTTP methods) and string length limits: the assignment defines no contract for them.
+- Authentication of the agent, rate limiting and load: outside the validation rules given in the assignment.
 
 **Validation decisions:**
 - Unknown fields are rejected at both root and nested object levels using strict schemas. This favors a clearly defined security-agent contract, although it reduces forward compatibility when new fields are introduced.
@@ -135,11 +185,11 @@ The tests cover the main authentication scenarios using Playwright, Page Object 
 
 | Test Case | Reason |
 |---|---|
-| Successful login | Verify that valid credentials allow access to the protected inventory page. |
-| Invalid credentials | Ensure that invalid credentials are rejected and access to protected content is not granted. |
-| Locked-out user | Verify that a locked account cannot authenticate, even with valid credentials. |
-| Direct URL access | Ensure that unauthenticated users cannot bypass the login page by navigating directly to a protected URL. |
-| Logout and session termination | Verify that logout removes access to protected content and that the user cannot reopen the protected page without authenticating again. |
+| Successful login | Establishes that the legitimate path works (URL is the inventory page and the product list is visible). The negative tests below only mean something if a valid login really does succeed. |
+| Invalid credentials | Wrong credentials must show an error and grant nothing: the test checks the message, that no redirect happens and that the protected list is absent. The message says only that username and password do not match, so it does not reveal which one was right (no user enumeration). |
+| Locked-out user | A lock is the control for disabled or compromised accounts. It has to hold even when the password is correct, so the test uses the valid password and expects the lock message and no session. |
+| Direct URL access | Hiding a link is not access control. Opening `/inventory.html` without logging in is the simplest bypass (forced browsing), so the test expects a redirect to the login page and no protected content. |
+| Logout and session termination | After logout a shared or stolen browser must not give access. The test logs in, logs out and then opens the protected URL directly, expecting the login page again, so it proves the session was ended and not only hidden. |
 
 ### Implementation Decisions
 
@@ -153,15 +203,20 @@ Test credentials are stored separately from the tests to avoid duplication and s
 
 | Test Case | Reason |
 |---|---|
-| Valid login | Verify that valid credentials return non-empty access and refresh tokens. |
-| Authenticated user | Verify that a valid bearer token grants access to `/auth/me` and returns the correct user's details. |
-| Missing token | Verify that protected user information cannot be accessed without authentication. |
-| Invalid token | Verify that invalid bearer tokens are rejected and cannot be used to access protected data. |
-| Invalid credentials | Verify that incorrect credentials are rejected and no authentication tokens are issued. |
+| Valid login | Everything else depends on tokens being issued. The test checks that both tokens are non-empty strings (an empty string would pass a plain "is present" check) and belong to the requested user. |
+| Authenticated user | Shows that a token authorizes access **and** is bound to the right identity: `/auth/me` must return the user who logged in (same `username` and `id`), not another account. It uses a fresh request context without cookies, so success comes from the `Bearer` header and not from a leftover session. |
+| Missing token | A protected endpoint must not fall back to anonymous access. Expects `401` and the "Access Token is required" message. |
+| Invalid token | Forged or garbage tokens are the basic attack on token authentication. The test expects `401` with "Invalid/Expired Token!", not a `200` and not a server error. |
+| Invalid credentials | A failed login must not issue tokens, even partially. Expects `400`, a generic "Invalid credentials" message and no `accessToken` / `refreshToken` in the body. |
 
 **Additional security scenarios**
 
-I selected invalid token and invalid credentials tests because authentication bypass and unauthorized token issuance are important security risks.
+The two additional scenarios cover the two ways authentication fails open:
+
+- **Invalid token** - the server must verify the token it receives. If it only checked that a header exists, anyone could reach user data with an arbitrary string.
+- **Invalid credentials** - the login endpoint must not issue a token, or give hints about which part was wrong, after a failed attempt. This is the response a credential-stuffing or brute-force attempt receives on every try.
+
+The `expiresInMins` login parameter was not used; see Limitations.
 
 **Limitations**
 
