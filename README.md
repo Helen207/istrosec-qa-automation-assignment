@@ -7,6 +7,11 @@ Automated tests implemented using Playwright and TypeScript.
 - TypeScript
 - Node.js
 
+## Requirements
+
+- Node.js 20 or newer (required by Playwright 1.64). Developed and checked with Node.js v26.13.0 and npm 11.20.0.
+- Network access: Tasks #1, #2 and #4 run against public sites (marmelab.com, jsonplaceholder.typicode.com, saucedemo.com, dummyjson.com).
+
 ## Setup
 
 1. Clone the repository.
@@ -22,6 +27,26 @@ Automated tests implemented using Playwright and TypeScript.
    ```bash
    npx playwright test
    ```
+
+The tests in `api-healthcheck` need the local mock server. Playwright starts it automatically (`webServer` in `playwright.config.ts`), so no manual step is needed for the commands in this README.
+
+To run the mock server on its own (it listens on `http://127.0.0.1:3001`):
+
+```bash
+npm run mock:start
+```
+
+In another terminal, check that it is up and try the reference payload (`test-data/healthcheck.payload.ts`):
+
+```bash
+curl http://127.0.0.1:3001/health
+# {"status":"ready"}
+
+curl -X POST http://127.0.0.1:3001/healthcheck \
+  -H 'Content-Type: application/json' \
+  -d '{"agent_id":"not-a-uuid"}'
+# {"status":"error","errors":[{"field":"agent_id",...}, ...]}
+```
 
 To run a single task, use its project:
 
