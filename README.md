@@ -128,6 +128,11 @@ The healthcheck is how the server learns which agents exist, what they run on an
 | Empty `session_info` | A host with nobody logged in (freshly booted, server) is a normal state. Rejecting it would make legitimate agents disappear. |
 | UTC timestamp with milliseconds | ISO 8601 allows fractional seconds, so a stricter validator would reject real agents. The test checks that the `Z` rule is not implemented as a rigid regex. |
 | Adapter with empty `addresses` | A disconnected adapter has no IP. An empty array is still a valid array of valid addresses, so the server must not reject it. |
+| Each role value, and all roles together | `roles` is an enum with three allowed values. Testing only `workstation` would let a server that forgot `server` or `domain_controller` pass, and those hosts would be rejected in production. |
+| IPv4-only and IPv6-only adapter | The address check has separate IPv4 and IPv6 branches; a host may legitimately have only one of them. |
+| Empty `base_board_sn` | The rule only says "string" (`"None"` is just the usual placeholder), so an empty value must not be treated like an empty `computer_name`. |
+| Lowercase UUIDs | The rule says "8-4-4-4-12 hex characters", which includes lowercase. A case-sensitive check would reject agents that format UUIDs differently. |
+| Zero OS version numbers | Boundary of the "integer >= 0" rule; `0` must be accepted. |
 
 **Negative tests (must be rejected with 400 and an error that names the field)**
 
@@ -152,6 +157,14 @@ The healthcheck is how the server learns which agents exist, what they run on an
 | Empty `roles` | Roles tell the server which policies apply to the host, so a host without a role would have no classification. |
 | Unsupported role (`admin`) | Enum check: an arbitrary role value must never be able to select a policy the product does not define. |
 | Unknown session `state` | Enum check: the session state tells whether a user is active on the host. |
+| Empty `computer_name` / whitespace-only `os_name` | The non-empty string rule. These names identify the host in the console, so a blank value produces an unnamed asset. Whitespace-only is covered because it looks filled in but is not. |
+| Malformed `system_product_uuid` | `agent_id` is tested, but each field is validated separately; this catches a schema where only one of the two UUID fields is checked. |
+| Non-string `base_board_sn` | The rule is "string"; a number would pass a check that only looks for a present value. |
+| Date-only `last_update_time` | Second timestamp field, with a different failure shape than the full timestamp cases above. |
+| IPv6 zone index with an invalid character | `%7` is allowed, but arbitrary text after `%` is not; this pins the character set the mock accepts. |
+| Empty adapter `name` | Non-empty rule inside a nested object, where it is easy to forget. |
+| `addresses` given as a string | Type check: a bare string would otherwise be iterated character by character, or accepted as a single address. |
+| Empty `session_name`, negative `session_id`, missing `account_sid` | `session_info` was otherwise tested only through `state`. These cover its non-empty, range and required-key rules. |
 
 ### Riskiest Areas
 
@@ -162,7 +175,7 @@ The healthcheck is how the server learns which agents exist, what they run on an
 ### Consciously Omitted
 
 - A missing-field test for every single field: one representative (`agent_id`) plus the empty payload covers the same required-field mechanism.
-- Negative values for `os_major` / `os_minor` / `session_id`: they share the integer rule that is tested on `os_build`.
+- Negative values for `os_major` / `os_minor`: they share the integer rule that is tested on `os_build` and `session_id`.
 - Transport-level cases (invalid JSON, wrong content type, huge payloads, other HTTP methods) and string length limits: the assignment defines no contract for them.
 - Authentication of the agent, rate limiting and load: outside the validation rules given in the assignment.
 
