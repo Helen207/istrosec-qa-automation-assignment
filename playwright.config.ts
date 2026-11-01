@@ -43,9 +43,17 @@ export default defineConfig({
     },
     {
       name: 'ui-chromium',
-      testMatch: '**/ui/**/*.spec.ts',
+      testMatch: '**/ui/saucedemo-*.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'ui-react-admin',
+      testMatch: '**/ui/react-admin-*.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'https://marmelab.com/react-admin-demo/',
       },
     },
     {

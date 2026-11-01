@@ -23,11 +23,61 @@ Automated tests implemented using Playwright and TypeScript.
    npx playwright test
    ```
 
-To run only the CRUD API tests:
+To run a single task, use its project:
 
 ```bash
-npx playwright test --project=api-crud
+npx playwright test --project=ui-react-admin   # Task #1
+npx playwright test --project=api-crud         # Task #2
+npx playwright test --project=api-healthcheck  # Task #3
+npx playwright test --project=ui-chromium      # Task #4 Part A
+npx playwright test --project=api-auth         # Task #4 Part B
 ```
+
+## Task #1 – UI Automation (React Admin)
+
+**Application:** https://marmelab.com/react-admin-demo/ (login `demo` / `demo`)
+
+All tests run against the **Customers** resource (900 records, sortable columns, filters, search, create/edit form). The demo keeps its data in the browser and resets it on every reload, so each test starts from the same state and tests can run in parallel without affecting each other or the public demo. Four areas are covered: list view, create/edit form, delete flow and navigation.
+
+### Test Coverage
+
+**List view**
+
+| Test Case | Reason |
+|---|---|
+| Next page shows the following 25 customers | Pagination is the only way to reach most of the 900 records; the test checks that the next page contains different rows, not only that the counter changes. |
+| Sorting by orders ascending / descending | Sorting must reorder the actual rows. Two tests, because ascending and descending are separate clicks and can break independently. A numeric column is used to avoid locale-dependent string ordering. |
+| Search narrows the list to matching customers | Search is the main way to find a record; the customer used as the search term must still be in the result and the total must shrink. |
+| Search without a match shows the empty state | Verifies that an empty result is communicated instead of showing a blank or stale table. |
+| Has ordered filter lists only customers with at least one order | Verifies that a filter restricts the data by its meaning (every remaining row has orders > 0), not only that the count changes. |
+
+**Create / edit form**
+
+| Test Case | Reason |
+|---|---|
+| Creating a customer with valid data | Happy path: success notification, redirect to the edit page and persisted field values. |
+| Created customer is present in the customers list | Verifies that the record is really stored and findable, not only that the form was accepted. |
+| Submitting without first name / last name / email | Required-field validation, one test per field so a regression in one field is pinpointed. Checks the field error and the form-level notice. |
+| Submitting with a malformed email | The email field relies on browser validation; the test verifies that submission is blocked. |
+| Submitting with mismatching passwords | Cross-field validation that a per-field required check would not catch. |
+| Editing a field saves the change and shows it in the list | Verifies the update (`Customer updated`) is persisted, not only displayed in the form. |
+| Save stays disabled until the form is changed | Prevents empty submits; checks the enabled/disabled transition. |
+
+**Delete flow**
+
+| Test Case | Reason |
+|---|---|
+| Deleting a customer removes it from the list | The record must disappear from search results after the deletion is committed. |
+| Undo restores a deleted customer | React Admin deletes are undoable instead of using a confirmation dialog; Undo is the safety net against accidental deletion. |
+
+**Navigation**
+
+| Test Case | Reason |
+|---|---|
+| Sidebar links (Orders, Posters, Customers, Reviews) | Each link must open the right section; one test per link. |
+| Browser back and forward move between visited sections | Single-page apps often break history; verifies URL and visible content stay consistent. |
+| Browser back returns to the previous page of the list | Verifies that pagination state is part of browser history. |
+
 
 ## Task #2 – API CRUD Testing
 
