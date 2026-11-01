@@ -146,3 +146,15 @@ test('DELETE /posts/1 - deletes existing post', async ({ request }) => {
     const responseBody = await response.json();
     expect(responseBody).toEqual({})
 });
+
+// JSONPlaceholder answers 500 (with a stack trace in the body) instead of 404 when the post does not exist.
+// test.fail() keeps the suite green while that defect exists and fails once it is fixed, so the marker gets removed.
+test('PUT /posts/9999 - returns 404 for non-existing post', async ({ request }) => {
+    test.fail();
+
+    const response = await request.put('/posts/9999', {
+        data: { id: 9999, title: 'Updated test', body: 'Testing PUT on missing post', userId: 1 },
+    });
+
+    expect(response.status()).toBe(404);
+});

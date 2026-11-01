@@ -123,10 +123,13 @@ The goal is to verify basic CRUD operations, response data and selected negative
 | PUT /posts/1 | A full update has to return every submitted field with its new value; this is the contract clients rely on to refresh their local copy after saving. |
 | PATCH /posts/1 | A partial update must change only the sent field. The test re-reads the original post and checks that `id`, `userId` and `title` stay untouched, which catches a PATCH that behaves like PUT and wipes the fields that were not sent. |
 | DELETE /posts/1 | Clients use the success response as the signal to remove the item from their UI. The test pins `200` and an empty body so a change in the success contract is noticed. |
+| PUT /posts/9999 (known defect) | Updating a post that does not exist must give a client error. JSONPlaceholder answers `500` and puts a server stack trace with file paths in the body, which is both a wrong status and an information leak. The test expects `404` and is marked `test.fail()`: it counts as passing while the defect exists and turns red when the API is fixed. |
 
 ### Known Limitations and Omitted Scenarios
 
 JSONPlaceholder is a fake REST API. POST, PUT, PATCH and DELETE operations are simulated, and changes are not persisted. Therefore, the tests verify the response rather than actual database changes.
+
+**Error states of write operations:** I checked all four write methods against a non-existing id. Only `PUT` fails (500); `PATCH` and `DELETE` return 200 and `POST` with an empty body returns 201, as the fake API does not validate anything. The `PUT` case is the only one that is clearly wrong, so it is the only one with a test.
 
 **DELETE – non-existing post:** I considered testing the deletion of a non-existing post. However, JSONPlaceholder returns `200 OK` and `{}` for both existing and non-existing posts. Since this behavior is already covered by the successful DELETE response test, I decided not to include a separate test with limited additional value.
 
