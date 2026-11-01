@@ -20,7 +20,7 @@ test('POST/auth/login - returns tokens for valid credentials', async ({request})
     expect(responseBody.username).toBe(dummyJsonUsers.valid.username);
 });
 
-test('GET /auth/me - returns authenticated user details', async ({request, playwright}) => {
+test('GET /auth/me - returns authenticated user details', async ({request, playwright, baseURL}) => {
         // login request to get valid accessToken
         const loginResponse = await request.post('/auth/login', {
             data: dummyJsonUsers.valid
@@ -32,9 +32,7 @@ test('GET /auth/me - returns authenticated user details', async ({request, playw
         const accessToken = loginBody.accessToken;
 
         // fresh context without login cookies
-        const authenticatedRequest = await playwright.request.newContext({
-            baseURL: 'https://dummyjson.com',
-        });
+        const authenticatedRequest = await playwright.request.newContext({ baseURL });
 
         // request with valid accessToken
         try {

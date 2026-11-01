@@ -27,6 +27,7 @@ export default defineConfig({
             testMatch: '**/ui/saucedemo-*.spec.ts',
             use: {
                 ...devices['Desktop Chrome'],
+                baseURL: 'https://www.saucedemo.com/',
             },
         },
         {

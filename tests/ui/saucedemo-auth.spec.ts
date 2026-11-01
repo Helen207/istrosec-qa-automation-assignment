@@ -11,9 +11,7 @@ test('Successful login redirects user to inventory page',
 
     await loginPage.login(sauceDemoUsers.standard);
 
-    await expect(page).toHaveURL(
-        'https://www.saucedemo.com/inventory.html'
-    );
+    await expect(page).toHaveURL('/inventory.html');
 
     await expect(inventoryPage.inventoryList).toBeVisible();
 });
@@ -29,14 +27,14 @@ test('Login with invalid credentials is rejected', async ({ page, loginPage, inv
         .toContainText('Username and password do not match');
 
     // verify no redirection
-    await expect(page).not.toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page).not.toHaveURL('/inventory.html');
     await expect(inventoryPage.inventoryList).not.toBeVisible();
 });
 
 test('Going directly to inventory page should redirect to login page', async ({ page, loginPage, inventoryPage }) => {
-    await page.goto('https://www.saucedemo.com/inventory.html');
+    await page.goto('/inventory.html');
 
-    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page).toHaveURL('/');
     await expect(loginPage.usernameInput).toBeVisible();
 
     await expect(inventoryPage.inventoryList).not.toBeVisible();
@@ -70,7 +68,7 @@ test('Log out and session termination', async ({ page, loginPage, inventoryPage 
     await expect(loginPage.passwordInput).toBeVisible();
 
     // try to access protected page after logout
-    await page.goto('https://www.saucedemo.com/inventory.html');
+    await page.goto('/inventory.html');
 
     // verify access is denied
     await expect(loginPage.usernameInput).toBeVisible();
