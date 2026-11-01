@@ -60,6 +60,21 @@ JSONPlaceholder is a fake REST API. POST, PUT, PATCH and DELETE operations are s
 In a production API, I would additionally test input validation, data persistence, authorization and more negative scenarios based on the API specification.
 
 
+## Task 3 – Agent Healthcheck Validation
+
+Implemented a local Express mock server with Zod schema validation. The server accepts valid healthcheck payloads with HTTP 200 and `{ "status": "ok" }`, and rejects invalid payloads with HTTP 400 and a structured `errors` array.
+
+**Testing approach:** Positive tests cover the reference payload and important boundary conditions. Data-driven negative tests cover missing and unexpected fields, invalid UUIDs, numeric constraints, timestamp formats, IP addresses, and nested object validation. Each invalid case is executed as a separate Playwright test.
+
+**Validation decisions:**
+- Unknown fields are rejected at both root and nested object levels using strict schemas. This favors a clearly defined security-agent contract, although it reduces forward compatibility when new fields are introduced.
+- UTC timestamps must end in `Z`; fractional seconds are accepted. Calendar validity is checked in addition to the timestamp format.
+- `session_info` may be empty, while `adapter_info` and `roles` must contain at least one entry.
+- IPv4 and IPv6 addresses are supported, including IPv6 zone identifiers.
+
+The mock server is started automatically through Playwright's `webServer` configuration. Tests can be run with `npx playwright test --project=api-healthcheck`.
+
+
 ## Task #4 – Authentication & Authorization
 
 ### Part A – UI Authentication (SauceDemo)

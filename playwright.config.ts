@@ -55,32 +55,19 @@ export default defineConfig({
         baseURL: 'https://dummyjson.com',
       },
     },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    {
+      name: 'api-healthcheck',
+      testMatch: '**/api/healthcheck.spec.ts',
+      use: {
+        baseURL: 'http://127.0.0.1:3001',
+      },
+    }
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  webServer: {
+    command: 'npm run mock:start',
+    url: 'http://127.0.0.1:3001/health',
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  },
 });
