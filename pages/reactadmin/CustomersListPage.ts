@@ -49,6 +49,10 @@ export class CustomersListPage {
         return (await this.columnValues(column)).map(Number);
     }
 
+    async openFirstRow() {
+        await this.rows.first().getByRole('link').click();
+    }
+
     // The list keeps showing the previous rows until the new page has loaded, and the
     // range text updates before them, so only the rows prove the new data arrived.
     async waitForRowsToReplace(previousNames: string[]) {
