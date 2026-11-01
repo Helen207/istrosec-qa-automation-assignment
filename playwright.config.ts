@@ -48,6 +48,13 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
       },
     },
+    {
+      name: 'api-auth',
+      testMatch: '**/api/auth.spec.ts',
+      use: {
+        baseURL: 'https://dummyjson.com',
+      },
+    },
 
     /* Test against mobile viewports. */
     // {
